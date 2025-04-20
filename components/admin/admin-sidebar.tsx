@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Users, Database, Settings, Award, Music } from "lucide-react"
+import { Users, Database, Settings, Award, Music, SlidersHorizontal } from "lucide-react"
 
 const navItems = [
   {
@@ -19,6 +19,11 @@ const navItems = [
     name: "Playlists",
     href: "/admin/dashboard/playlists",
     icon: Music,
+  },
+  {
+    name: "Variables",
+    href: "/admin/dashboard/variables",
+    icon: SlidersHorizontal,
   },
   {
     name: "Database",

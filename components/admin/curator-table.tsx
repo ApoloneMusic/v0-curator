@@ -27,7 +27,7 @@ interface CuratorTableProps {
   initialCurators: Curator[]
 }
 
-export function CuratorTable({ initialCurators }: CuratorTableProps) {
+export function CuratorTable({ initialCurators = [] }: CuratorTableProps) {
   const [curators, setCurators] = useState<Curator[]>(initialCurators)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCurator, setSelectedCurator] = useState<Curator | null>(null)
@@ -240,7 +240,9 @@ export function CuratorTable({ initialCurators }: CuratorTableProps) {
                 {sortedCurators.length === 0 && (
                   <tr>
                     <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                      No curators found
+                      {curators.length === 0
+                        ? "No curators found in the system"
+                        : "No curators match your search criteria"}
                     </td>
                   </tr>
                 )}

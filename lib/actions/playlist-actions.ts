@@ -14,8 +14,6 @@ import { getPlaylistDetails } from "@/lib/spotify-api"
 
 // Function to add a playlist from Spotify with improved error handling
 export async function addSpotifyPlaylist(prevState: any, formData: FormData) {
-  console.log("addSpotifyPlaylist called with formData:", Object.fromEntries(formData.entries()))
-
   try {
     // Get current user
     const user = await getCurrentUser()
@@ -29,6 +27,7 @@ export async function addSpotifyPlaylist(prevState: any, formData: FormData) {
 
     // Extract form data
     const spotifyId = formData.get("spotifyId") as string
+    const name = formData.get("name") as string
 
     if (!spotifyId) {
       console.error("Missing Spotify playlist ID")
@@ -103,8 +102,15 @@ export async function addSpotifyPlaylist(prevState: any, formData: FormData) {
       }
     }
 
+    // Extract playlist name if not provided
+    let playlistName = name
+    if (!playlistName && spotifyPlaylist.name) {
+      playlistName = spotifyPlaylist.name
+    }
+
     // Create playlist data object
     const playlistData = {
+      name: playlistName,
       spotifyLink: spotifyPlaylist.external_urls.spotify,
       followers: spotifyPlaylist.followers?.total || 0,
       primaryGenre,
@@ -201,6 +207,7 @@ export async function addPlaylist(prevState: any, formData: FormData) {
     }
 
     // Extract form data
+    const name = formData.get("name") as string
     const spotifyLink = formData.get("spotifyLink") as string
     const followers = Number(formData.get("followers"))
     const primaryGenre = formData.get("primaryGenre") as string
@@ -213,6 +220,7 @@ export async function addPlaylist(prevState: any, formData: FormData) {
 
     // Create playlist data object
     const playlistData = {
+      name,
       spotifyLink,
       followers,
       primaryGenre,
@@ -287,6 +295,7 @@ export async function editPlaylist(playlistId: string, prevState: any, formData:
     }
 
     // Extract form data
+    const name = formData.get("name") as string
     const spotifyLink = formData.get("spotifyLink") as string
     const followers = Number(formData.get("followers"))
     const primaryGenre = formData.get("primaryGenre") as string
@@ -299,6 +308,7 @@ export async function editPlaylist(playlistId: string, prevState: any, formData:
 
     // Create playlist data object
     const playlistData = {
+      name,
       spotifyLink,
       followers,
       primaryGenre,

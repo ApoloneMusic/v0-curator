@@ -9,45 +9,65 @@ export async function getAllCurators() {
     // Check admin authentication
     const { isAuthenticated } = await requireAdmin()
     if (!isAuthenticated) {
-      return { success: false, error: "Unauthorized" }
+      return { success: false, error: "Unauthorized", curators: [] }
     }
 
-    // Get all curator keys
-    const curatorKeys = await kv.keys("curator:*")
+    let curatorKeys = []
+    try {
+      // Get all curator keys with explicit error handling
+      curatorKeys = await kv.keys("curator:*")
+      // Ensure curatorKeys is an array
+      if (!Array.isArray(curatorKeys)) {
+        console.error("Expected array of keys but got:", typeof curatorKeys)
+        curatorKeys = []
+      }
+    } catch (keyError) {
+      console.error("Error fetching curator keys:", keyError)
+      curatorKeys = []
+    }
 
     // Filter out nickname index keys
-    const curatorIdKeys = curatorKeys.filter((key) => !key.includes("curator:nick:"))
+    const curatorIdKeys = curatorKeys.filter((key) => key && typeof key === "string" && !key.includes("curator:nick:"))
 
     // Get all curators with their user data
     const curators = []
     for (const key of curatorIdKeys) {
-      const curatorId = key.split(":")[1]
-      const curatorData = await kv.hgetall(key)
+      try {
+        const curatorId = key.split(":")[1]
+        const curatorData = await kv.hgetall(key)
 
-      if (curatorData) {
-        // Get associated user data
-        const userData = await kv.hgetall(`user:${curatorId}`)
-
-        if (userData) {
-          // Remove password from user data
-          const { password, ...userWithoutPassword } = userData
-
-          // Combine user and curator data
-          const combinedData = {
-            id: curatorId,
-            ...userWithoutPassword,
-            ...curatorData,
+        if (curatorData) {
+          // Get associated user data
+          let userData = null
+          try {
+            userData = await kv.hgetall(`user:${curatorId}`)
+          } catch (userError) {
+            console.error(`Error fetching user data for curator ${curatorId}:`, userError)
           }
 
-          curators.push(combinedData)
+          if (userData) {
+            // Remove password from user data
+            const { password, ...userWithoutPassword } = userData
+
+            // Combine user and curator data
+            const combinedData = {
+              id: curatorId,
+              ...userWithoutPassword,
+              ...curatorData,
+            }
+
+            curators.push(combinedData)
+          }
         }
+      } catch (curatorError) {
+        console.error(`Error processing curator data for ${key}:`, curatorError)
       }
     }
 
     return { success: true, curators }
   } catch (error) {
     console.error("Error getting curators:", error)
-    return { success: false, error: "Failed to fetch curators" }
+    return { success: false, error: "Failed to fetch curators", curators: [] }
   }
 }
 

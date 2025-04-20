@@ -3,65 +3,6 @@
 import { searchPlaylists, getPlaylistDetails } from "@/lib/spotify-api"
 import { getCurrentUser } from "@/lib/auth"
 
-// Mock data for fallback when API fails
-const fallbackSearchResults = {
-  playlists: [
-    {
-      id: "37i9dQZF1DXcF6B6QPhFDv",
-      name: "Rock Classics",
-      external_urls: {
-        spotify: "https://open.spotify.com/playlist/37i9dQZF1DXcF6B6QPhFDv",
-      },
-      images: [
-        {
-          url: "https://i.scdn.co/image/ab67706f00000003b5d03a1a0aed6c1c9c53a9d8",
-          height: 300,
-          width: 300,
-        },
-      ],
-      owner: {
-        display_name: "Spotify",
-        id: "spotify",
-      },
-      tracks: {
-        total: 100,
-      },
-      followers: {
-        total: 5000000,
-      },
-    },
-    {
-      id: "37i9dQZF1DWXRqgorJj26U",
-      name: "Rock Mix",
-      external_urls: {
-        spotify: "https://open.spotify.com/playlist/37i9dQZF1DWXRqgorJj26U",
-      },
-      images: [
-        {
-          url: "https://i.scdn.co/image/ab67706f00000003c15d79d5c2e5fbc3f1aa3aea",
-          height: 300,
-          width: 300,
-        },
-      ],
-      owner: {
-        display_name: "Spotify",
-        id: "spotify",
-      },
-      tracks: {
-        total: 50,
-      },
-      followers: {
-        total: 3000000,
-      },
-    },
-  ],
-  total: 2,
-  offset: 0,
-  limit: 10,
-  next: null,
-  previous: null,
-}
-
 // Search for playlists on Spotify
 export async function searchSpotifyPlaylists(query: string, limit = 10, offset = 0) {
   try {
@@ -83,31 +24,21 @@ export async function searchSpotifyPlaylists(query: string, limit = 10, offset =
 
     // Search for playlists
     try {
-      console.log("Calling searchPlaylists with query:", query)
+      console.log("Searching Spotify for:", query)
       const result = await searchPlaylists(query, limit, offset)
-      console.log("Search result received:", {
-        hasPlaylists: !!result.playlists,
-        itemCount: result.playlists?.items?.length || 0,
-      })
 
       // Ensure we have valid playlists data
       if (!result || !result.playlists || !Array.isArray(result.playlists.items)) {
         console.error("Invalid response structure:", result)
         return {
-          success: true, // Return success but use fallback data
-          playlists: fallbackSearchResults.playlists,
-          total: fallbackSearchResults.total,
-          offset: fallbackSearchResults.offset,
-          limit: fallbackSearchResults.limit,
-          next: fallbackSearchResults.next,
-          previous: fallbackSearchResults.previous,
+          success: false,
+          error: "Invalid response from Spotify API",
         }
       }
 
       // Process playlists to ensure they have all required fields
-      // Filter out any null items first, then process the valid ones
       const processedPlaylists = result.playlists.items
-        .filter((playlist) => playlist !== null && playlist !== undefined) // Filter out null/undefined playlists
+        .filter((playlist) => playlist !== null && playlist !== undefined)
         .map((playlist) => ({
           id: playlist.id || "",
           name: playlist.name || "Untitled Playlist",
@@ -129,21 +60,6 @@ export async function searchSpotifyPlaylists(query: string, limit = 10, offset =
       }
     } catch (error: any) {
       console.error("Spotify API error:", error)
-
-      // If API credentials are missing or API call fails, use fallback data
-      if (error.message?.includes("credentials are not set") || error.message?.includes("Failed to get access token")) {
-        console.log("Using fallback search results due to API error")
-        return {
-          success: true,
-          playlists: fallbackSearchResults.playlists,
-          total: fallbackSearchResults.total,
-          offset: fallbackSearchResults.offset,
-          limit: fallbackSearchResults.limit,
-          next: fallbackSearchResults.next,
-          previous: fallbackSearchResults.previous,
-        }
-      }
-
       return {
         success: false,
         error: `Spotify API error: ${error.message || "Unknown error"}`,
@@ -154,8 +70,6 @@ export async function searchSpotifyPlaylists(query: string, limit = 10, offset =
     return {
       success: false,
       error: `Failed to search Spotify playlists: ${error.message || "Unknown error"}`,
-      // Return fallback data even on error
-      playlists: fallbackSearchResults.playlists,
     }
   }
 }
@@ -181,21 +95,9 @@ export async function getSpotifyPlaylistDetails(playlistId: string) {
     }
   } catch (error: any) {
     console.error("Error getting Spotify playlist details:", error)
-
-    // If API credentials are missing or API call fails, use fallback data
-    if (error.message?.includes("credentials are not set") || error.message?.includes("Failed to get access token")) {
-      console.log("Using fallback playlist details due to API error")
-      return {
-        success: true,
-        playlist: fallbackSearchResults.playlists[0],
-      }
-    }
-
     return {
       success: false,
-      error: "Failed to get Spotify playlist details",
-      // Return fallback data even on error
-      playlist: fallbackSearchResults.playlists[0],
+      error: `Failed to get Spotify playlist details: ${error.message || "Unknown error"}`,
     }
   }
 }

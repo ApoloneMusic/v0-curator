@@ -10,40 +10,60 @@ export async function getAllUsers() {
     // Check admin authentication
     const { isAuthenticated } = await requireAdmin()
     if (!isAuthenticated) {
-      return { success: false, error: "Unauthorized" }
+      return { success: false, error: "Unauthorized", users: [] }
     }
 
-    // Get all user keys
-    const userKeys = await kv.keys("user:*")
+    let userKeys = []
+    try {
+      // Get all user keys with explicit error handling
+      userKeys = await kv.keys("user:*")
+      // Ensure userKeys is an array
+      if (!Array.isArray(userKeys)) {
+        console.error("Expected array of keys but got:", typeof userKeys)
+        userKeys = []
+      }
+    } catch (keyError) {
+      console.error("Error fetching user keys:", keyError)
+      userKeys = []
+    }
 
     // Filter out email index keys
-    const userIdKeys = userKeys.filter((key) => !key.includes("user:email:"))
+    const userIdKeys = userKeys.filter((key) => key && typeof key === "string" && !key.includes("user:email:"))
 
     // Get all users
     const users = []
     for (const key of userIdKeys) {
-      const userData = await kv.hgetall(key)
-      if (userData) {
-        // Remove password from user data
-        const { password, ...userWithoutPassword } = userData
+      try {
+        const userData = await kv.hgetall(key)
+        if (userData) {
+          // Remove password from user data
+          const { password, ...userWithoutPassword } = userData
 
-        // Get curator data if it exists
-        const curatorData = await kv.hgetall(`curator:${userData.id}`)
+          // Get curator data if it exists
+          let curatorData = null
+          try {
+            curatorData = await kv.hgetall(`curator:${userData.id}`)
+          } catch (curatorError) {
+            console.error(`Error fetching curator data for ${userData.id}:`, curatorError)
+          }
 
-        // Combine user and curator data
-        const combinedData = {
-          ...userWithoutPassword,
-          ...(curatorData || {}),
+          // Combine user and curator data
+          const combinedData = {
+            ...userWithoutPassword,
+            ...(curatorData || {}),
+          }
+
+          users.push(combinedData)
         }
-
-        users.push(combinedData)
+      } catch (userError) {
+        console.error(`Error fetching user data for ${key}:`, userError)
       }
     }
 
     return { success: true, users }
   } catch (error) {
     console.error("Error getting users:", error)
-    return { success: false, error: "Failed to fetch users" }
+    return { success: false, error: "Failed to fetch users", users: [] }
   }
 }
 
@@ -182,7 +202,7 @@ export async function deleteUser(id: string) {
     }
 
     // Delete sessions for this user
-    const sessionKeys = await kv.keys(`session:*`)
+    const sessionKeys = (await kv.keys(`session:*`)) || []
     for (const key of sessionKeys) {
       const session = await kv.hgetall(key)
       if (session && session.userId === id) {

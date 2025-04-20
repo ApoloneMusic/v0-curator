@@ -99,3 +99,67 @@
     }
   }
 }
+
+/* Fix for form elements in dialogs */
+[data-radix-dialog-content] {
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 10000 !important;
+  position: relative !important;
+}
+
+[data-radix-dialog-content] select,
+[data-radix-dialog-content] input,
+[data-radix-dialog-content] button {
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: block !important;
+  z-index: 10001 !important;
+  position: relative !important;
+}
+
+[data-radix-dialog-content] .grid {
+  visibility: visible !important;
+  opacity: 1 !important;
+  display: grid !important;
+  z-index: 10001 !important;
+  position: relative !important;
+}
+
+/* Ensure form elements are visible */
+select,
+input,
+button {
+  z-index: 101;
+  position: relative;
+}
+
+/* Dialog overlay and content styles */
+[data-radix-dialog-overlay] {
+  z-index: 9999 !important;
+}
+
+[data-radix-dialog-content] {
+  z-index: 10000 !important;
+}
+
+/* Ensure the dialog appears above all other elements */
+.radix-dialog-content {
+  z-index: 10000 !important;
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: 100% !important;
+  max-width: 500px !important;
+  background-color: white !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Ensure the dialog portal is above everything */
+[data-radix-dialog-portal] {
+  z-index: 9999 !important;
+  position: fixed !important;
+  inset: 0 !important;
+}

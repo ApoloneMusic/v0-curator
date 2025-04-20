@@ -3,7 +3,10 @@ import { CuratorTable } from "@/components/admin/curator-table"
 import { getAllCurators } from "@/lib/actions/admin-curators"
 
 export default async function CuratorsPage() {
-  const { curators, success } = await getAllCurators()
+  const { curators = [], success } = await getAllCurators()
+
+  // Ensure curators is always an array
+  const safeCurators = Array.isArray(curators) ? curators : []
 
   return (
     <div className="p-6">
@@ -15,7 +18,7 @@ export default async function CuratorsPage() {
             <CardTitle className="text-lg">Total Curators</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{curators?.length || 0}</p>
+            <p className="text-3xl font-bold">{safeCurators.length}</p>
           </CardContent>
         </Card>
 
@@ -25,7 +28,7 @@ export default async function CuratorsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">
-              {curators?.filter((curator) => curator.status === "verified").length || 0}
+              {safeCurators.filter((curator) => curator && curator.status === "verified").length}
             </p>
           </CardContent>
         </Card>
@@ -36,7 +39,10 @@ export default async function CuratorsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold">
-              {curators?.reduce((sum, curator) => sum + (Number.parseInt(curator.credits) || 0), 0) || 0}
+              {safeCurators.reduce(
+                (sum, curator) => sum + (Number.parseInt(String(curator?.credits || 0), 10) || 0),
+                0,
+              )}
             </p>
           </CardContent>
         </Card>
@@ -47,7 +53,13 @@ export default async function CuratorsPage() {
           <CardTitle>Curator Database</CardTitle>
         </CardHeader>
         <CardContent>
-          {success ? <CuratorTable initialCurators={curators || []} /> : <p>Failed to load curators</p>}
+          {success ? (
+            <CuratorTable initialCurators={safeCurators} />
+          ) : (
+            <div className="p-4 text-center">
+              <p className="text-red-500">Failed to load curators. Please try again later.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

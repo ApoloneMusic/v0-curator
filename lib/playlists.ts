@@ -238,6 +238,7 @@ export const SUBGENRE_DISPLAY_MAP: Record<string, string> = {
 export type Playlist = {
   id: string
   owner: string
+  name?: string // Add this field to store playlist names
   spotifyLink: string
   followers: number
   primaryGenre: string
@@ -253,6 +254,7 @@ export type Playlist = {
 
 // Validation schema for playlist data
 export const playlistSchema = z.object({
+  name: z.string().optional(),
   spotifyLink: z.string().url("Please enter a valid Spotify link"),
   followers: z.number().int().nonnegative("Followers must be a non-negative integer"),
   primaryGenre: z.enum([...PRIMARY_GENRES] as [string, ...string[]], {
@@ -380,6 +382,7 @@ export async function getPlaylistById(id: string): Promise<Playlist | null> {
       language: playlist.language,
       createdAt: playlist.createdAt,
       updatedAt: playlist.updatedAt,
+      name: playlist.name,
     }
   } catch (error) {
     console.error("Error getting playlist by ID:", error)
@@ -411,13 +414,28 @@ export async function getPlaylistsByCurator(curatorId: string): Promise<Playlist
 // Function to get all playlists
 export async function getAllPlaylists(): Promise<Playlist[]> {
   try {
-    const keys = await kv.keys("playlist:*")
+    let keys = []
+    try {
+      keys = await kv.keys("playlist:*")
+      if (!Array.isArray(keys)) {
+        console.error("Expected array of keys but got:", typeof keys)
+        return []
+      }
+    } catch (keyError) {
+      console.error("Error fetching playlist keys:", keyError)
+      return []
+    }
+
     const playlists: Playlist[] = []
 
     for (const key of keys) {
-      const playlist = await kv.hgetall<Playlist>(key)
-      if (playlist) {
-        playlists.push(playlist)
+      try {
+        const playlist = await kv.hgetall<Playlist>(key)
+        if (playlist) {
+          playlists.push(playlist)
+        }
+      } catch (playlistError) {
+        console.error(`Error fetching playlist data for ${key}:`, playlistError)
       }
     }
 

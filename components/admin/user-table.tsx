@@ -28,7 +28,7 @@ interface UserTableProps {
   initialUsers: User[]
 }
 
-export function UserTable({ initialUsers }: UserTableProps) {
+export function UserTable({ initialUsers = [] }: UserTableProps) {
   const [users, setUsers] = useState<User[]>(initialUsers)
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
@@ -257,7 +257,7 @@ export function UserTable({ initialUsers }: UserTableProps) {
                 {sortedUsers.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                      No users found
+                      {users.length === 0 ? "No users found in the system" : "No users match your search criteria"}
                     </td>
                   </tr>
                 )}

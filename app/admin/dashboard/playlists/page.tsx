@@ -5,7 +5,14 @@ import { getAllPlaylists } from "@/lib/playlists"
 import { Search } from "lucide-react"
 
 export default async function AdminPlaylistsPage() {
-  const playlists = await getAllPlaylists()
+  const playlists = (await getAllPlaylists()) || []
+
+  // Calculate stats safely
+  const totalPlaylists = Array.isArray(playlists) ? playlists.length : 0
+  const totalFollowers = Array.isArray(playlists)
+    ? playlists.reduce((sum, playlist) => sum + (playlist?.followers || 0), 0)
+    : 0
+  const averageFollowers = totalPlaylists > 0 ? Math.round(totalFollowers / totalPlaylists) : 0
 
   return (
     <div className="p-6">
@@ -17,7 +24,7 @@ export default async function AdminPlaylistsPage() {
             <CardTitle className="text-lg">Total Playlists</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">{playlists.length}</p>
+            <p className="text-3xl font-bold">{totalPlaylists}</p>
           </CardContent>
         </Card>
 
@@ -26,9 +33,7 @@ export default async function AdminPlaylistsPage() {
             <CardTitle className="text-lg">Total Followers</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">
-              {playlists.reduce((sum, playlist) => sum + playlist.followers, 0).toLocaleString()}
-            </p>
+            <p className="text-3xl font-bold">{totalFollowers.toLocaleString()}</p>
           </CardContent>
         </Card>
 
@@ -37,13 +42,7 @@ export default async function AdminPlaylistsPage() {
             <CardTitle className="text-lg">Average Followers</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold">
-              {playlists.length > 0
-                ? Math.round(
-                    playlists.reduce((sum, playlist) => sum + playlist.followers, 0) / playlists.length,
-                  ).toLocaleString()
-                : 0}
-            </p>
+            <p className="text-3xl font-bold">{averageFollowers.toLocaleString()}</p>
           </CardContent>
         </Card>
       </div>
@@ -61,11 +60,9 @@ export default async function AdminPlaylistsPage() {
       </Card>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {playlists.map((playlist) => (
-          <PlaylistCard key={playlist.id} playlist={playlist} isOwner={false} />
-        ))}
-
-        {playlists.length === 0 && (
+        {Array.isArray(playlists) && playlists.length > 0 ? (
+          playlists.map((playlist) => <PlaylistCard key={playlist.id} playlist={playlist} isOwner={false} />)
+        ) : (
           <div className="col-span-full text-center p-12">
             <p className="text-muted-foreground">No playlists found.</p>
           </div>
