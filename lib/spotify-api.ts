@@ -245,18 +245,22 @@ export async function searchPlaylists(
       const data = await response.json()
 
       // Validate the response has the expected structure
-      if (!data.playlists || !Array.isArray(data.playlists.items)) {
+      if (!data || !data.playlists || !Array.isArray(data.playlists.items)) {
         console.error("Invalid search results received from Spotify API:", data)
         throw new Error("Invalid search results received from Spotify API")
       }
+
+      // Filter out any null or undefined items first
+      const validItems = data.playlists.items.filter((item) => item != null)
 
       // Ensure all required fields exist to prevent null/undefined errors
       const sanitizedData = {
         playlists: {
           ...data.playlists,
-          items: data.playlists.items.map((playlist: any) => ({
-            ...playlist,
-            images: playlist.images || [],
+          items: validItems.map((playlist: any) => ({
+            id: playlist.id || "",
+            name: playlist.name || "Untitled Playlist",
+            images: Array.isArray(playlist.images) ? playlist.images : [],
             external_urls: playlist.external_urls || { spotify: "" },
             owner: playlist.owner || { display_name: "Unknown", id: "" },
             tracks: playlist.tracks || { total: 0 },
@@ -355,15 +359,16 @@ export async function getPlaylistDetails(playlistId: string): Promise<SpotifyPla
       const data = await response.json()
 
       // Validate the response has the minimum required fields
-      if (!data.id || !data.name || !data.external_urls?.spotify) {
+      if (!data || !data.id) {
         console.error("Invalid playlist data received from Spotify API:", data)
         throw new Error("Invalid playlist data received from Spotify API")
       }
 
       // Ensure all required fields exist to prevent null/undefined errors
       const sanitizedData = {
-        ...data,
-        images: data.images || [],
+        id: data.id,
+        name: data.name || "Untitled Playlist",
+        images: Array.isArray(data.images) ? data.images : [],
         external_urls: data.external_urls || { spotify: "" },
         owner: data.owner || { display_name: "Unknown", id: "" },
         tracks: data.tracks || { total: 0 },

@@ -1,15 +1,13 @@
 "use client"
 
-import { useMemo } from "react"
-
 import type React from "react"
-import { useState, useCallback, useTransition, useRef, useEffect } from "react"
+
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ReloadIcon } from "@radix-ui/react-icons"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import type { SpotifyPlaylist } from "@/lib/spotify-api"
 import { addSpotifyPlaylist } from "@/lib/actions/playlist-actions"
 import {
   PRIMARY_GENRES,
@@ -22,181 +20,132 @@ import {
   SUBGENRE_DISPLAY_MAP,
 } from "@/lib/playlists"
 import { Music } from "lucide-react"
+import type { SpotifyPlaylist } from "@/lib/spotify-api"
 
 interface PlaylistDetailsModalProps {
   isOpen: boolean
   onClose: () => void
-  playlist: SpotifyPlaylist
+  playlist: SpotifyPlaylist | null
   onPlaylistAdded: () => void
 }
 
 export function PlaylistDetailsModal({ isOpen, onClose, playlist, onPlaylistAdded }: PlaylistDetailsModalProps) {
-  const [isPending, startTransition] = useTransition()
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState<any>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const formRef = useRef<HTMLFormElement>(null)
-  const [submissionAttempted, setSubmissionAttempted] = useState(false)
-  const [formValid, setFormValid] = useState(true)
+  const [imageError, setImageError] = useState(false)
 
-  // Track submission status to prevent duplicate submissions
-  const submissionInProgressRef = useRef(false)
+  // Debug logging for modal props
+  useEffect(() => {
+    console.log("PlaylistDetailsModal props:", { isOpen, hasPlaylist: !!playlist })
+  }, [isOpen, playlist])
 
-  // Reset form and state when modal opens/closes
+  // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Reset states when modal opens
       setError(null)
       setSuccess(null)
-      setIsSubmitting(false)
-      setSubmissionAttempted(false)
-      submissionInProgressRef.current = false
+      setIsPending(false)
+      setImageError(false)
     }
   }, [isOpen])
 
-  // Validate form before submission
-  const validateForm = useCallback((formData: FormData): boolean => {
-    // Check required fields
-    const primaryGenre = formData.get("primaryGenre")
-    const vocal = formData.get("vocal")
-    const language = formData.get("language")
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setIsPending(true)
+    setError(null)
+    setSuccess(null)
 
-    if (!primaryGenre || !vocal || !language) {
-      setError({ _form: ["Please fill in all required fields"] })
-      return false
-    }
-
-    // Check at least one subgenre is selected
-    const subgenres = formData.getAll("subgenres")
-    if (subgenres.length === 0) {
-      setError({ subgenres: ["Please select at least one subgenre"] })
-      return false
-    }
-
-    return true
-  }, [])
-
-  // Optimize form submission with useCallback
-  const handleSubmit = useCallback(
-    async (e: React.FormEvent<HTMLFormElement>) => {
-      e.preventDefault()
-
-      // Set submission attempted flag for validation feedback
-      setSubmissionAttempted(true)
-
-      // Prevent duplicate submissions
-      if (submissionInProgressRef.current) {
-        console.log("Submission already in progress, ignoring duplicate submission")
-        return
+    try {
+      if (!playlist || !playlist.id) {
+        throw new Error("Invalid playlist data")
       }
 
-      setIsSubmitting(true)
-      submissionInProgressRef.current = true
-      setError(null)
-      setSuccess(null)
+      const formData = new FormData(e.currentTarget)
+      formData.append("spotifyId", playlist.id)
 
-      try {
-        const formData = new FormData(e.currentTarget)
+      console.log("Submitting playlist:", playlist.id)
+      const result = await addSpotifyPlaylist(null, formData)
 
-        // Validate that we have the playlist ID
-        if (!playlist.id) {
-          throw new Error("Missing playlist ID")
-        }
-
-        // Validate form
-        if (!validateForm(formData)) {
-          setIsSubmitting(false)
-          submissionInProgressRef.current = false
-          return
-        }
-
-        formData.append("spotifyId", playlist.id)
-
-        // Use startTransition for non-urgent UI updates
-        startTransition(async () => {
-          try {
-            console.log("Submitting playlist with ID:", playlist.id)
-            const result = await addSpotifyPlaylist(null, formData)
-
-            if (result.success) {
-              console.log("Playlist added successfully:", result)
-              setSuccess(result.message || "Playlist added successfully")
-
-              // Delay closing the modal to show success message
-              setTimeout(() => {
-                onPlaylistAdded()
-              }, 1500)
-            } else {
-              console.error("Failed to add playlist:", result.error)
-              setError(result.error || { _form: ["Failed to add playlist"] })
-              submissionInProgressRef.current = false
-            }
-          } catch (err: any) {
-            console.error("Error adding playlist:", err)
-            setError({ _form: [`An unexpected error occurred: ${err.message || "Unknown error"}`] })
-            submissionInProgressRef.current = false
-          } finally {
-            setIsSubmitting(false)
-          }
-        })
-      } catch (err: any) {
-        console.error("Form submission error:", err)
-        setError({ _form: [`An unexpected error occurred: ${err.message || "Unknown error"}`] })
-        setIsSubmitting(false)
-        submissionInProgressRef.current = false
+      if (result.success && result.playlist) {
+        console.log("Playlist added successfully:", result.playlist)
+        setSuccess(result.message || "Playlist added successfully")
+        setTimeout(() => {
+          onPlaylistAdded()
+        }, 1500)
+      } else {
+        console.error("Failed to add playlist:", result.error)
+        setError(result.error || { _form: ["Failed to add playlist"] })
       }
-    },
-    [playlist.id, onPlaylistAdded, validateForm],
-  )
-
-  // Reset form and state when modal opens/closes
-  const handleOpenChange = useCallback(
-    (open: boolean) => {
-      if (!open) {
-        // Reset form when closing
-        if (formRef.current) {
-          formRef.current.reset()
-        }
-        setError(null)
-        setSuccess(null)
-        setIsSubmitting(false)
-        submissionInProgressRef.current = false
-        onClose()
-      }
-    },
-    [onClose],
-  )
-
-  // Optimize image rendering with error handling
-  const [imageError, setImageError] = useState(false)
-
-  const playlistImage = useMemo(() => {
-    if (imageError || !playlist?.images?.length || !playlist.images[0]?.url) {
-      return <Music className="h-8 w-8 m-4 text-muted-foreground" />
+    } catch (err: any) {
+      console.error("Error adding playlist:", err)
+      setError({ _form: [err.message || "An unexpected error occurred"] })
+    } finally {
+      setIsPending(false)
     }
+  }
 
+  // If no playlist is selected, don't render the modal content
+  if (!playlist) {
     return (
-      <img
-        src={playlist.images[0].url || "/placeholder.svg"}
-        alt={playlist.name}
-        className="h-full w-full object-cover"
-        loading="lazy"
-        onError={() => setImageError(true)}
-      />
+      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Loading...</DialogTitle>
+          </DialogHeader>
+        </DialogContent>
+      </Dialog>
     )
-  }, [playlist, imageError])
+  }
+
+  // Extract Spotify playlist ID from URL for embedding
+  const getPlaylistId = (url: string) => {
+    try {
+      const parts = url.split("/")
+      return parts[parts.length - 1].split("?")[0]
+    } catch (e) {
+      return null
+    }
+  }
+
+  const playlistId = playlist.external_urls?.spotify ? getPlaylistId(playlist.external_urls.spotify) : null
+  const embedUrl = playlistId ? `https://open.spotify.com/embed/playlist/${playlistId}` : null
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) {
+          console.log("Dialog onOpenChange triggered close")
+          onClose()
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Playlist Details</DialogTitle>
         </DialogHeader>
 
         <div className="flex items-center mb-4">
-          <div className="h-16 w-16 flex-shrink-0 bg-muted">{playlistImage}</div>
+          <div className="h-16 w-16 flex-shrink-0 bg-muted">
+            {!imageError &&
+            playlist.images &&
+            Array.isArray(playlist.images) &&
+            playlist.images.length > 0 &&
+            playlist.images[0]?.url ? (
+              <img
+                src={playlist.images[0].url || "/placeholder.svg"}
+                alt={playlist.name || "Playlist"}
+                className="h-full w-full object-cover"
+                loading="lazy"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <Music className="h-8 w-8 m-4 text-muted-foreground" />
+            )}
+          </div>
           <div className="ml-4 flex-1 overflow-hidden">
-            <h3 className="font-medium truncate">{playlist.name}</h3>
+            <h3 className="font-medium truncate">{playlist.name || "Untitled Playlist"}</h3>
             <p className="text-sm text-muted-foreground truncate">
               By {playlist.owner?.display_name || "Unknown"} • {playlist.tracks?.total || 0} tracks
             </p>
@@ -206,7 +155,20 @@ export function PlaylistDetailsModal({ isOpen, onClose, playlist, onPlaylistAdde
           </div>
         </div>
 
-        <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+        {embedUrl && (
+          <div className="w-full h-[80px] bg-black rounded-md overflow-hidden mb-4">
+            <iframe
+              src={embedUrl}
+              width="100%"
+              height="80"
+              frameBorder="0"
+              allow="encrypted-media"
+              title="Spotify Playlist"
+            ></iframe>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="primaryGenre">Primary Genre *</Label>
             <select
@@ -247,11 +209,6 @@ export function PlaylistDetailsModal({ isOpen, onClose, playlist, onPlaylistAdde
               ))}
             </div>
             {error?.subgenres && <p className="text-sm text-destructive">{error.subgenres[0]}</p>}
-            {submissionAttempted &&
-              formRef.current &&
-              formRef.current.querySelectorAll('input[name="subgenres"]:checked').length === 0 && (
-                <p className="text-sm text-destructive">Please select at least one subgenre</p>
-              )}
           </div>
 
           <div className="space-y-2">
@@ -348,11 +305,11 @@ export function PlaylistDetailsModal({ isOpen, onClose, playlist, onPlaylistAdde
           )}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting || isPending}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || isPending}>
-              {isSubmitting || isPending ? (
+            <Button type="submit" disabled={isPending}>
+              {isPending ? (
                 <>
                   <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
                   Adding...

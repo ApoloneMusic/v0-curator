@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useCallback, useMemo, useTransition } from "react"
+import { useState, useCallback, useMemo, useTransition, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,6 +19,11 @@ const PlaylistCard: React.FC<{
 }> = ({ playlist, onAddClick }) => {
   const [imageError, setImageError] = useState(false)
 
+  // Ensure playlist is valid
+  if (!playlist || !playlist.id) {
+    return null
+  }
+
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-0">
@@ -32,7 +37,7 @@ const PlaylistCard: React.FC<{
             playlist.images[0]?.url ? (
               <img
                 src={playlist.images[0].url || "/placeholder.svg"}
-                alt={playlist.name}
+                alt={playlist.name || "Playlist"}
                 className="h-full w-full object-cover"
                 loading="lazy"
                 onError={() => setImageError(true)}
@@ -42,7 +47,7 @@ const PlaylistCard: React.FC<{
             )}
           </div>
           <div className="ml-4 flex-1 overflow-hidden">
-            <h3 className="font-medium truncate">{playlist.name}</h3>
+            <h3 className="font-medium truncate">{playlist.name || "Untitled Playlist"}</h3>
             <p className="text-sm text-muted-foreground truncate">
               By {playlist.owner?.display_name || "Unknown"} • {playlist.tracks?.total || 0} tracks
             </p>
@@ -50,7 +55,16 @@ const PlaylistCard: React.FC<{
               {(playlist.followers?.total || 0).toLocaleString()} followers
             </p>
           </div>
-          <Button variant="ghost" size="sm" className="ml-2" onClick={() => onAddClick(playlist)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-2"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onAddClick(playlist)
+            }}
+          >
             <Plus className="h-4 w-4 mr-1" />
             Add
           </Button>
@@ -62,7 +76,7 @@ const PlaylistCard: React.FC<{
 
 export function SpotifySearch() {
   const [query, setQuery] = useState("")
-  const [isPending, startTransition] = useTransition() // Use React transitions
+  const [isPending, startTransition] = useTransition()
   const [searchResults, setSearchResults] = useState<SpotifyPlaylist[]>([])
   const [error, setError] = useState<string | null>(null)
   const [selectedPlaylist, setSelectedPlaylist] = useState<SpotifyPlaylist | null>(null)
@@ -70,7 +84,11 @@ export function SpotifySearch() {
   const [isSearching, setIsSearching] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
 
-  // Debounce search to prevent excessive API calls
+  // Debug logging for modal state
+  useEffect(() => {
+    console.log("Modal state changed:", { isModalOpen, hasSelectedPlaylist: !!selectedPlaylist })
+  }, [isModalOpen, selectedPlaylist])
+
   const handleSearch = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault()
@@ -84,7 +102,6 @@ export function SpotifySearch() {
       setError(null)
       setHasSearched(true)
 
-      // Use React transitions for non-urgent updates
       startTransition(() => {
         setSearchResults([])
       })
@@ -93,9 +110,11 @@ export function SpotifySearch() {
         const result = await searchSpotifyPlaylists(query)
 
         if (result.success && result.playlists) {
-          // Use transitions for updating search results
           startTransition(() => {
-            setSearchResults(result.playlists)
+            const validPlaylists = result.playlists.filter(
+              (playlist) => playlist && playlist.id && typeof playlist.id === "string",
+            )
+            setSearchResults(validPlaylists)
           })
 
           if (result.playlists.length === 0) {
@@ -116,23 +135,36 @@ export function SpotifySearch() {
   )
 
   const handleAddPlaylist = useCallback((playlist: SpotifyPlaylist) => {
+    if (!playlist || !playlist.id) {
+      console.error("Attempted to add invalid playlist")
+      return
+    }
+    console.log("Add button clicked for playlist:", playlist.name)
     setSelectedPlaylist(playlist)
     setIsModalOpen(true)
   }, [])
 
   const handleCloseModal = useCallback(() => {
+    console.log("Closing modal")
     setIsModalOpen(false)
-    setSelectedPlaylist(null)
+    // Add a small delay before clearing the selected playlist to ensure smooth transitions
+    setTimeout(() => {
+      setSelectedPlaylist(null)
+    }, 300)
   }, [])
 
   const handlePlaylistAdded = useCallback(() => {
+    console.log("Playlist added, closing modal")
     setIsModalOpen(false)
-    setSelectedPlaylist(null)
+    // Add a small delay before clearing the selected playlist to ensure smooth transitions
+    setTimeout(() => {
+      setSelectedPlaylist(null)
+    }, 300)
   }, [])
 
   // Memoize search results to prevent unnecessary re-renders
   const memoizedSearchResults = useMemo(() => {
-    return searchResults
+    return searchResults.filter((playlist) => playlist && playlist.id)
   }, [searchResults])
 
   return (
@@ -178,9 +210,11 @@ export function SpotifySearch() {
 
       <div className="space-y-2">
         {!isSearching && memoizedSearchResults.length > 0 ? (
-          memoizedSearchResults.map((playlist) => (
-            <PlaylistCard key={playlist.id} playlist={playlist} onAddClick={handleAddPlaylist} />
-          ))
+          memoizedSearchResults.map((playlist) =>
+            playlist && playlist.id ? (
+              <PlaylistCard key={playlist.id} playlist={playlist} onAddClick={handleAddPlaylist} />
+            ) : null,
+          )
         ) : !isSearching && hasSearched && query ? (
           <div className="bg-white rounded-lg border p-12 flex flex-col items-center justify-center">
             <div className="w-16 h-16 flex items-center justify-center text-muted-foreground mb-4">
@@ -192,14 +226,13 @@ export function SpotifySearch() {
         ) : null}
       </div>
 
-      {selectedPlaylist && (
-        <PlaylistDetailsModal
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-          playlist={selectedPlaylist}
-          onPlaylistAdded={handlePlaylistAdded}
-        />
-      )}
+      {/* Always render the modal but control its visibility with isOpen prop */}
+      <PlaylistDetailsModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        playlist={selectedPlaylist}
+        onPlaylistAdded={handlePlaylistAdded}
+      />
     </div>
   )
 }
