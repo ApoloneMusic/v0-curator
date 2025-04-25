@@ -35,22 +35,28 @@ export async function updateVariablesForCategory(category: VariableCategory, var
     }
 
     // Perform basic validation based on category
-    if (category === "subgenres") {
+    if (category === "tempos") {
       for (const variable of variables) {
-        if (!variable.id || !variable.name || !variable.primaryGenre) {
-          return { success: false, error: "All subgenres must have id, name, and primaryGenre" }
-        }
-      }
-    } else if (category === "tempos") {
-      for (const variable of variables) {
-        if (!variable.id || !variable.name || !variable.bpmRange) {
+        if (!variable.id || !variable.name || !("bpmRange" in variable)) {
           return { success: false, error: "All tempos must have id, name, and bpmRange" }
         }
       }
-    } else if (category === "vocals") {
+    } else if (category === "vocals" || category === "moods" || category === "eras" || category === "languages") {
       for (const variable of variables) {
         if (!variable.id || !variable.name) {
-          return { success: false, error: "All vocals must have id and name" }
+          return { success: false, error: `All ${category} must have id and name` }
+        }
+      }
+    } else if (category === "genres") {
+      for (const variable of variables) {
+        if (!variable.id || !variable.name) {
+          return { success: false, error: "All genres must have id and name" }
+        }
+      }
+    } else if (category === "subgenres") {
+      for (const variable of variables) {
+        if (!variable.id || !variable.name || !("parentGenre" in variable)) {
+          return { success: false, error: "All subgenres must have id, name, and parentGenre" }
         }
       }
     }

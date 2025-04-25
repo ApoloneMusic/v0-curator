@@ -5,7 +5,7 @@ import { kv } from "@vercel/kv"
 import crypto from "crypto"
 
 // Hardcoded admin credentials
-const ADMIN_EMAIL = "hrmo@sparklink.sk"
+export const ADMIN_EMAIL = "hrmo@sparklink.sk"
 const ADMIN_PASSWORD = "123abc456"
 
 export async function adminLogin(email: string, password: string) {

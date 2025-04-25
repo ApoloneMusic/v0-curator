@@ -62,19 +62,6 @@ export function PlaylistCard({ playlist, onEdit, onDelete, isOwner }: PlaylistCa
             </Badge>
           </div>
 
-          {playlist.subgenres.length > 0 && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Subgenres:</p>
-              <div className="flex flex-wrap gap-1">
-                {playlist.subgenres.map((subgenre) => (
-                  <Badge key={subgenre} variant="outline" className="text-xs">
-                    {subgenre}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
           {playlist.moods.length > 0 && (
             <div>
               <p className="text-xs text-muted-foreground mb-1">Moods:</p>

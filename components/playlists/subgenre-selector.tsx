@@ -1,140 +1,169 @@
 "use client"
 
-import { useState } from "react"
-import { Check, ChevronsUpDown } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { PRIMARY_GENRES, SUBGENRES, SUBGENRE_DISPLAY_MAP } from "@/lib/playlists"
+import { useState, useEffect } from "react"
+import { Checkbox } from "@/components/ui/checkbox"
+import { getVariables } from "@/lib/variables"
+import type { GenreVariable, SubgenreVariable } from "@/lib/variables"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle, Info } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 
-// Group subgenres by their primary genre prefix
-const groupSubgenresByGenre = () => {
-  const groups: Record<string, string[]> = {}
+interface SubgenreSelectorProps {
+  value: string[]
+  onChange: (value: string[]) => void
+  primaryGenre?: string
+  error?: string
+  minRequired?: number
+}
 
-  // Initialize groups for all primary genres
-  PRIMARY_GENRES.forEach((genre) => {
-    groups[genre] = []
-  })
+export function SubgenreSelector({ value, onChange, primaryGenre, error, minRequired = 3 }: SubgenreSelectorProps) {
+  const [genres, setGenres] = useState<GenreVariable[]>([])
+  const [subgenres, setSubgenres] = useState<SubgenreVariable[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [filteredSubgenres, setFilteredSubgenres] = useState<SubgenreVariable[]>([])
+  const [validationError, setValidationError] = useState<string | null>(null)
 
-  // Add "Other" category for subgenres that don't match a primary genre
-  groups["Other"] = []
+  // Load genres and subgenres
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true)
+      try {
+        const genresData = (await getVariables("genres")) as GenreVariable[]
+        const subgenresData = (await getVariables("subgenres")) as SubgenreVariable[]
 
-  SUBGENRES.forEach((subgenre) => {
-    let matched = false
+        console.log("Loaded genres:", genresData)
+        console.log("Loaded subgenres:", subgenresData)
 
-    // Try to match subgenre to a primary genre
-    for (const genre of PRIMARY_GENRES) {
-      if (
-        subgenre.startsWith(genre) ||
-        subgenre.includes(`_${genre}`) ||
-        SUBGENRE_DISPLAY_MAP[subgenre].includes(genre)
-      ) {
-        groups[genre].push(subgenre)
-        matched = true
-        break
+        setGenres(genresData)
+        setSubgenres(subgenresData)
+      } catch (error) {
+        console.error("Error loading genres and subgenres:", error)
+      } finally {
+        setIsLoading(false)
       }
     }
 
-    // If no match found, add to "Other"
-    if (!matched) {
-      groups["Other"].push(subgenre)
+    loadData()
+  }, [])
+
+  // Filter subgenres when primary genre changes or subgenres are loaded
+  useEffect(() => {
+    if (primaryGenre && subgenres.length > 0) {
+      console.log(`Filtering subgenres for genre: ${primaryGenre}`)
+
+      // Filter subgenres by parent genre
+      const filtered = subgenres.filter((subgenre) => {
+        const match = subgenre.parentGenre === primaryGenre
+        return match
+      })
+
+      console.log(`Found ${filtered.length} matching subgenres`)
+
+      // If no subgenres match the selected genre, show all subgenres as a fallback
+      if (filtered.length === 0) {
+        console.log("No matching subgenres found, showing all subgenres as fallback")
+        setFilteredSubgenres(subgenres)
+      } else {
+        setFilteredSubgenres(filtered)
+      }
+    } else {
+      // If no primary genre is selected or subgenres aren't loaded yet, show all
+      setFilteredSubgenres(subgenres)
     }
-  })
+  }, [primaryGenre, subgenres])
 
-  // Remove empty groups
-  return Object.fromEntries(Object.entries(groups).filter(([_, subgenres]) => subgenres.length > 0))
-}
-
-interface SubgenreSelectorProps {
-  selectedSubgenres: string[]
-  onChange: (selectedSubgenres: string[]) => void
-  error?: string
-}
-
-export function SubgenreSelector({ selectedSubgenres, onChange, error }: SubgenreSelectorProps) {
-  const [open, setOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const groupedSubgenres = groupSubgenresByGenre()
-
-  // Get display text for the button
-  const getButtonText = () => {
-    if (selectedSubgenres.length === 0) {
-      return "Select subgenres..."
+  // Validate selection count when value changes
+  useEffect(() => {
+    if (value.length < minRequired) {
+      setValidationError(`Please select at least ${minRequired} subgenres`)
+    } else {
+      setValidationError(null)
     }
+  }, [value, minRequired])
 
-    if (selectedSubgenres.length === 1) {
-      return SUBGENRE_DISPLAY_MAP[selectedSubgenres[0]] || selectedSubgenres[0]
-    }
-
-    return `${selectedSubgenres.length} subgenres selected`
+  // Get genre name from ID
+  const getGenreName = (genreId: string): string => {
+    if (!genreId) return "Other"
+    const genre = genres.find((g) => g.id === genreId)
+    return genre ? genre.name : genreId
   }
 
-  // Toggle a subgenre selection
-  const toggleSubgenre = (subgenre: string) => {
-    if (selectedSubgenres.includes(subgenre)) {
-      onChange(selectedSubgenres.filter((s) => s !== subgenre))
+  // Handle checkbox change
+  const handleSubgenreChange = (subgenreId: string, checked: boolean) => {
+    if (checked) {
+      onChange([...value, subgenreId])
     } else {
-      onChange([...selectedSubgenres, subgenre])
+      onChange(value.filter((id) => id !== subgenreId))
     }
+  }
+
+  if (isLoading) {
+    return <div className="text-sm text-muted-foreground">Loading subgenres...</div>
+  }
+
+  if (subgenres.length === 0) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4 mr-2" />
+        <AlertDescription>
+          No subgenres available in the system. Please add subgenres in the admin panel.
+        </AlertDescription>
+      </Alert>
+    )
+  }
+
+  if (filteredSubgenres.length === 0) {
+    return (
+      <Alert>
+        <Info className="h-4 w-4 mr-2" />
+        <AlertDescription>
+          No subgenres found for this genre. Please select a different genre or add subgenres in the admin panel.
+        </AlertDescription>
+      </Alert>
+    )
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          className={cn("w-full justify-between", error ? "border-red-500" : "")}
-        >
-          <span className="truncate">{getButtonText()}</span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command>
-          <CommandInput
-            placeholder="Search subgenres..."
-            value={searchQuery}
-            onValueChange={setSearchQuery}
-            className="h-9"
-          />
-          <CommandList className="max-h-[300px] overflow-auto">
-            <CommandEmpty>No subgenres found.</CommandEmpty>
-            {Object.entries(groupedSubgenres).map(([genre, subgenres]) => {
-              // Filter subgenres based on search query
-              const filteredSubgenres = searchQuery
-                ? subgenres.filter((s) => SUBGENRE_DISPLAY_MAP[s].toLowerCase().includes(searchQuery.toLowerCase()))
-                : subgenres
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2 mb-2">
+        {value.length > 0 ? (
+          value.map((subgenreId) => {
+            const subgenre = subgenres.find((s) => s.id === subgenreId)
+            return (
+              <Badge key={subgenreId} variant="secondary">
+                {subgenre?.name || subgenreId}
+              </Badge>
+            )
+          })
+        ) : (
+          <span className="text-sm text-muted-foreground">No subgenres selected</span>
+        )}
+      </div>
 
-              if (filteredSubgenres.length === 0) return null
+      <div className="border rounded-md p-3 max-h-48 overflow-y-auto">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          {filteredSubgenres.map((subgenre) => (
+            <div key={subgenre.id} className="flex items-center">
+              <Checkbox
+                id={`subgenre-${subgenre.id}`}
+                checked={value.includes(subgenre.id)}
+                onCheckedChange={(checked) => handleSubgenreChange(subgenre.id, checked === true)}
+                className="mr-2"
+              />
+              <label htmlFor={`subgenre-${subgenre.id}`} className="text-sm">
+                {subgenre.name}
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
 
-              return (
-                <CommandGroup key={genre} heading={genre}>
-                  {filteredSubgenres.map((subgenre) => (
-                    <CommandItem key={subgenre} value={subgenre} onSelect={() => toggleSubgenre(subgenre)}>
-                      <div className="flex items-center">
-                        <div
-                          className={cn(
-                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border",
-                            selectedSubgenres.includes(subgenre)
-                              ? "border-primary bg-primary text-primary-foreground"
-                              : "border-input",
-                          )}
-                        >
-                          {selectedSubgenres.includes(subgenre) && <Check className="h-3 w-3" />}
-                        </div>
-                        <span>{SUBGENRE_DISPLAY_MAP[subgenre]}</span>
-                      </div>
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )
-            })}
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+      <div className="flex justify-between items-center">
+        <span className="text-xs text-muted-foreground">
+          Selected: {value.length} / {minRequired} required
+        </span>
+        {(validationError || error) && <span className="text-xs text-destructive">{validationError || error}</span>}
+      </div>
+    </div>
   )
 }

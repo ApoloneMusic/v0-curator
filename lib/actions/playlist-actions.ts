@@ -9,10 +9,35 @@ import {
   getPlaylistById,
   getPlaylistsByCurator,
   playlistSchema,
+  getAllPlaylists as getPlaylists,
+  createDynamicPlaylistSchema,
 } from "@/lib/playlists"
 import { getPlaylistDetails } from "@/lib/spotify-api"
+import { normalizeGenre, normalizeLanguage, normalizeVocal } from "@/lib/utils"
 
-// Function to add a playlist from Spotify with improved error handling
+// Function to get all playlists (for admin use)
+export async function getAllPlaylists(): Promise<any[]> {
+  try {
+    // Get current user
+    const user = await getCurrentUser()
+    if (!user) {
+      return []
+    }
+
+    // If user is admin, get all playlists
+    if (user.role === "admin") {
+      return await getPlaylists()
+    }
+
+    // Otherwise, only return user's playlists
+    return await getPlaylistsByCurator(user.id)
+  } catch (error) {
+    console.error("Error getting all playlists:", error)
+    return []
+  }
+}
+
+// Add a playlist from Spotify with improved error handling
 export async function addSpotifyPlaylist(prevState: any, formData: FormData) {
   try {
     // Get current user
@@ -37,13 +62,37 @@ export async function addSpotifyPlaylist(prevState: any, formData: FormData) {
       }
     }
 
-    const primaryGenre = formData.get("primaryGenre") as string
+    // Extract and normalize form data
+    const primaryGenreRaw = formData.get("primaryGenre") as string
+    const primaryGenre = await normalizeGenre(primaryGenreRaw)
+
     const subgenres = formData.getAll("subgenres") as string[]
     const moods = formData.getAll("moods") as string[]
     const tempos = formData.getAll("tempos") as string[]
-    const vocal = formData.get("vocal") as string
+
+    const vocalRaw = formData.get("vocal") as string
+    const vocal = normalizeVocal(vocalRaw)
+
     const eras = formData.getAll("eras") as string[]
-    const language = formData.get("language") as string
+
+    const languageRaw = formData.get("language") as string
+    const language = normalizeLanguage(languageRaw)
+
+    console.log("Form data received:", {
+      primaryGenreRaw,
+      primaryGenre,
+      vocalRaw,
+      vocal,
+      languageRaw,
+      language,
+      subgenres,
+    })
+
+    // Get followers count from form data or default to 0
+    const followersStr = formData.get("followers") as string
+    const followers = followersStr ? Number.parseInt(followersStr, 10) : 0
+
+    console.log("Received followers count:", followers)
 
     // Validate required fields
     if (!primaryGenre || !vocal || !language) {
@@ -54,12 +103,30 @@ export async function addSpotifyPlaylist(prevState: any, formData: FormData) {
       }
     }
 
-    // Validate at least one subgenre is selected
-    if (subgenres.length === 0) {
-      console.error("No subgenres selected")
+    // Validate at least one mood is selected
+    if (moods.length === 0) {
+      console.error("No moods selected")
       return {
         success: false,
-        error: { subgenres: ["Please select at least one subgenre"] },
+        error: { moods: ["Please select at least one mood"] },
+      }
+    }
+
+    // Validate at least one era is selected
+    if (eras.length === 0) {
+      console.error("No eras selected")
+      return {
+        success: false,
+        error: { eras: ["Please select at least one era"] },
+      }
+    }
+
+    // Validate at least three subgenres are selected
+    if (!subgenres || subgenres.length < 3) {
+      console.error("Not enough subgenres selected")
+      return {
+        success: false,
+        error: { subgenres: ["Please select at least 3 subgenres"] },
       }
     }
 
@@ -108,11 +175,23 @@ export async function addSpotifyPlaylist(prevState: any, formData: FormData) {
       playlistName = spotifyPlaylist.name
     }
 
+    // Use followers count from Spotify API if available, otherwise use the one from form data
+    const followerCount = spotifyPlaylist.followers?.total !== undefined ? spotifyPlaylist.followers.total : followers
+
+    console.log(
+      "Using follower count:",
+      followerCount,
+      "API value:",
+      spotifyPlaylist.followers?.total,
+      "Form value:",
+      followers,
+    )
+
     // Create playlist data object
     const playlistData = {
       name: playlistName,
       spotifyLink: spotifyPlaylist.external_urls.spotify,
-      followers: spotifyPlaylist.followers?.total || 0,
+      followers: followerCount,
       primaryGenre,
       subgenres,
       moods,
@@ -124,18 +203,31 @@ export async function addSpotifyPlaylist(prevState: any, formData: FormData) {
 
     console.log("Creating playlist with data:", playlistData)
 
-    // Validate input
+    // Validate input using dynamic schema
     try {
-      playlistSchema.parse(playlistData)
+      // First try with dynamic schema
+      const dynamicSchema = await createDynamicPlaylistSchema()
+
+      // Log the data being validated for debugging
+      console.log("Validating playlist data with dynamic schema:", playlistData)
+
+      dynamicSchema.parse(playlistData)
     } catch (error) {
-      console.error("Validation error:", error)
-      if (error instanceof z.ZodError) {
-        return {
-          success: false,
-          error: error.flatten().fieldErrors,
+      console.error("Dynamic schema validation error:", error)
+
+      // Fall back to standard schema if dynamic validation fails
+      try {
+        playlistSchema.parse(playlistData)
+      } catch (error) {
+        console.error("Standard schema validation error:", error)
+        if (error instanceof z.ZodError) {
+          return {
+            success: false,
+            error: error.flatten().fieldErrors,
+          }
         }
+        throw error
       }
-      throw error
     }
 
     // Check if playlist already exists
@@ -210,13 +302,31 @@ export async function addPlaylist(prevState: any, formData: FormData) {
     const name = formData.get("name") as string
     const spotifyLink = formData.get("spotifyLink") as string
     const followers = Number(formData.get("followers"))
-    const primaryGenre = formData.get("primaryGenre") as string
+
+    // Normalize case for genre and language
+    const primaryGenreRaw = formData.get("primaryGenre") as string
+    const primaryGenre = await normalizeGenre(primaryGenreRaw)
+
     const subgenres = formData.getAll("subgenres") as string[]
     const moods = formData.getAll("moods") as string[]
     const tempos = formData.getAll("tempos") as string[]
-    const vocal = formData.get("vocal") as string
+
+    const vocalRaw = formData.get("vocal") as string
+    const vocal = normalizeVocal(vocalRaw)
+
     const eras = formData.getAll("eras") as string[]
-    const language = formData.get("language") as string
+
+    const languageRaw = formData.get("language") as string
+    const language = normalizeLanguage(languageRaw)
+
+    // Validate at least three subgenres are selected
+    if (!subgenres || subgenres.length < 3) {
+      console.error("Not enough subgenres selected")
+      return {
+        success: false,
+        error: { subgenres: ["Please select at least 3 subgenres"] },
+      }
+    }
 
     // Create playlist data object
     const playlistData = {
@@ -232,12 +342,26 @@ export async function addPlaylist(prevState: any, formData: FormData) {
       language,
     }
 
-    // Validate input
-    const result = playlistSchema.safeParse(playlistData)
-    if (!result.success) {
-      return {
-        success: false,
-        error: result.error.flatten().fieldErrors,
+    // Validate input using dynamic schema
+    try {
+      // First try with dynamic schema
+      const dynamicSchema = await createDynamicPlaylistSchema()
+      dynamicSchema.parse(playlistData)
+    } catch (error) {
+      console.error("Dynamic schema validation error:", error)
+
+      // Fall back to standard schema if dynamic validation fails
+      try {
+        playlistSchema.parse(playlistData)
+      } catch (error) {
+        console.error("Standard schema validation error:", error)
+        if (error instanceof z.ZodError) {
+          return {
+            success: false,
+            error: error.flatten().fieldErrors,
+          }
+        }
+        throw error
       }
     }
 
@@ -266,7 +390,7 @@ export async function addPlaylist(prevState: any, formData: FormData) {
 }
 
 // Function to edit an existing playlist
-export async function editPlaylist(playlistId: string, prevState: any, formData: FormData) {
+export async function editPlaylist(playlistId: string, prevState: any, formData: any) {
   try {
     // Get current user
     const user = await getCurrentUser()
@@ -294,17 +418,50 @@ export async function editPlaylist(playlistId: string, prevState: any, formData:
       }
     }
 
-    // Extract form data
-    const name = formData.get("name") as string
-    const spotifyLink = formData.get("spotifyLink") as string
-    const followers = Number(formData.get("followers"))
-    const primaryGenre = formData.get("primaryGenre") as string
-    const subgenres = formData.getAll("subgenres") as string[]
-    const moods = formData.getAll("moods") as string[]
-    const tempos = formData.getAll("tempos") as string[]
-    const vocal = formData.get("vocal") as string
-    const eras = formData.getAll("eras") as string[]
-    const language = formData.get("language") as string
+    // Check if formData is a FormData instance or a plain object
+    let name, spotifyLink, followers, primaryGenre, subgenres, moods, tempos, vocal, eras, language
+    let primaryGenreRaw, vocalRaw, languageRaw
+
+    if (formData instanceof FormData) {
+      // Extract data from FormData
+      name = formData.get("name") as string
+      spotifyLink = formData.get("spotifyLink") as string
+      followers = Number(formData.get("followers"))
+      primaryGenreRaw = formData.get("primaryGenre") as string
+      primaryGenre = await normalizeGenre(primaryGenreRaw)
+      subgenres = formData.getAll("subgenres") as string[]
+      moods = formData.getAll("moods") as string[]
+      tempos = formData.getAll("tempos") as string[]
+      vocalRaw = formData.get("vocal") as string
+      vocal = normalizeVocal(vocalRaw)
+      eras = formData.getAll("eras") as string[]
+      languageRaw = formData.get("language") as string
+      language = normalizeLanguage(languageRaw)
+    } else {
+      // Handle case where formData is a plain object (not FormData)
+      console.log("FormData is not a FormData instance:", formData)
+
+      // Extract data from object
+      name = formData.name || playlist.name
+      spotifyLink = formData.spotifyLink || playlist.spotifyLink
+      followers = Number(formData.followers) || playlist.followers
+      primaryGenre = (await normalizeGenre(formData.primaryGenre)) || playlist.primaryGenre
+      subgenres = Array.isArray(formData.subgenres) ? formData.subgenres : playlist.subgenres || []
+      moods = Array.isArray(formData.moods) ? formData.moods : playlist.moods || []
+      tempos = Array.isArray(formData.tempos) ? formData.tempos : playlist.tempos || []
+      vocal = normalizeVocal(formData.vocal) || playlist.vocal
+      eras = Array.isArray(formData.eras) ? formData.eras : playlist.eras || []
+      language = normalizeLanguage(formData.language) || playlist.language
+    }
+
+    // Validate at least three subgenres are selected
+    if (!subgenres || subgenres.length < 3) {
+      console.error("Not enough subgenres selected")
+      return {
+        success: false,
+        error: { subgenres: ["Please select at least 3 subgenres"] },
+      }
+    }
 
     // Create playlist data object
     const playlistData = {
@@ -320,12 +477,32 @@ export async function editPlaylist(playlistId: string, prevState: any, formData:
       language,
     }
 
-    // Validate input
-    const result = playlistSchema.safeParse(playlistData)
-    if (!result.success) {
-      return {
-        success: false,
-        error: result.error.flatten().fieldErrors,
+    console.log("Updating playlist with data:", playlistData)
+
+    // Validate input using dynamic schema
+    try {
+      // First try with dynamic schema
+      const dynamicSchema = await createDynamicPlaylistSchema()
+
+      // Log the data being validated for debugging
+      console.log("Validating playlist data with dynamic schema:", playlistData)
+
+      dynamicSchema.parse(playlistData)
+    } catch (error) {
+      console.error("Dynamic schema validation error:", error)
+
+      // Fall back to standard schema if dynamic validation fails
+      try {
+        playlistSchema.parse(playlistData)
+      } catch (error) {
+        console.error("Standard schema validation error:", error)
+        if (error instanceof z.ZodError) {
+          return {
+            success: false,
+            error: error.flatten().fieldErrors,
+          }
+        }
+        throw error
       }
     }
 

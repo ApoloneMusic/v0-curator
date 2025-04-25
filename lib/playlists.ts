@@ -1,7 +1,8 @@
 import { z } from "zod"
 import { kv } from "@vercel/kv"
+import { getVariables } from "@/lib/variables"
 
-// Constants for playlist attributes
+// Constants for playlist attributes (used as fallbacks)
 export const PRIMARY_GENRES = [
   "Pop",
   "Hip-Hop",
@@ -21,94 +22,6 @@ export const PRIMARY_GENRES = [
   "Ambient",
   "Punk",
   "Spoken Word",
-]
-
-export const SUBGENRES = [
-  "Pop_Rock",
-  "Dance_Pop",
-  "Indie_Pop",
-  "Synth_Pop",
-  "Teen_Pop",
-  "Adult_Contemporary",
-  "Bedroom_Pop",
-  "Lo-fi_Hip-Hop",
-  "Alternative_Hip-Hop",
-  "Gangsta_Rap",
-  "Melodic_Rap",
-  "Old_School",
-  "Contemporary_R&B",
-  "Neo-Soul",
-  "Alt-R&B",
-  "Quiet_Storm",
-  "Gospel_R&B",
-  "Modern_Soul",
-  "New_Jack_Swing",
-  "Soul_Pop",
-  "Alternative_Rock",
-  "Classic_Rock",
-  "Hard_Rock",
-  "Indie_Rock",
-  "Progressive_Rock",
-  "Punk_Rock",
-  "Psychedelic_Rock",
-  "Blues_Rock",
-  "Pop_Rock_Alt",
-  "Drum_and_Bass",
-  "Future_Bass",
-  "Traditional_Country",
-  "Country_Pop",
-  "Country_Rock",
-  "Alt-Country",
-  "Smooth_Jazz",
-  "Contemporary_Jazz",
-  "Contemporary_Classical",
-  "Neo-Classical",
-  "Film_Score",
-  "Traditional_Folk",
-  "Contemporary_Folk",
-  "Indie_Folk",
-  "Singer-Songwriter",
-  "Folk_Rock",
-  "Latin_Pop",
-  "Latin_Urban",
-  "Middle_Eastern",
-  "Roots_Reggae",
-  "Reggae_Fusion",
-  "Heavy_Metal",
-  "Thrash_Metal",
-  "Death_Metal",
-  "Progressive_Metal",
-  "Delta_Blues",
-  "Chicago_Blues",
-  "Blues_Rock_Alt",
-  "Contemporary_Blues",
-  "Electric_Blues",
-  "Indie_Rock_Alt",
-  "Indie_Pop_Alt",
-  "Indie_Folk_Alt",
-  "Dream_Pop",
-  "Alternative_Rock_Alt",
-  "Post-Punk",
-  "New_Wave",
-  "Grunge_Alt",
-  "P-Funk",
-  "Funk_Rock",
-  "Jazz-Funk",
-  "Contemporary_Funk",
-  "Disco_Funk",
-  "Contemporary_Gospel",
-  "Christian_Rock",
-  "Christian_Pop",
-  "Christian_Hip-Hop",
-  "Dark_Ambient",
-  "New_Age",
-  "Ambient_Electronic",
-  "Hardcore_Punk",
-  "Pop_Punk",
-  "Post-Punk_Alt",
-  "Ska_Punk",
-  "Classic_Punk",
-  "Spoken_Word",
 ]
 
 export const MOODS = [
@@ -145,104 +58,15 @@ export const LANGUAGES = [
   "Hindi",
 ]
 
-// Add the missing SUBGENRE_DISPLAY_MAP
-export const SUBGENRE_DISPLAY_MAP: Record<string, string> = {
-  Pop_Rock: "Pop Rock",
-  Dance_Pop: "Dance Pop",
-  Indie_Pop: "Indie Pop",
-  Synth_Pop: "Synth Pop",
-  Teen_Pop: "Teen Pop",
-  Adult_Contemporary: "Adult Contemporary",
-  Bedroom_Pop: "Bedroom Pop",
-  "Lo-fi_Hip-Hop": "Lo-fi Hip-Hop",
-  "Alternative_Hip-Hop": "Alternative Hip-Hop",
-  Gangsta_Rap: "Gangsta Rap",
-  Melodic_Rap: "Melodic Rap",
-  Old_School: "Old School",
-  "Contemporary_R&B": "Contemporary R&B",
-  "Neo-Soul": "Neo-Soul",
-  "Alt-R&B": "Alt-R&B",
-  Quiet_Storm: "Quiet Storm",
-  "Gospel_R&B": "Gospel R&B",
-  Modern_Soul: "Modern Soul",
-  New_Jack_Swing: "New Jack Swing",
-  Soul_Pop: "Soul Pop",
-  Alternative_Rock: "Alternative Rock",
-  Classic_Rock: "Classic Rock",
-  Hard_Rock: "Hard Rock",
-  Indie_Rock: "Indie Rock",
-  Progressive_Rock: "Progressive Rock",
-  Punk_Rock: "Punk Rock",
-  Psychedelic_Rock: "Psychedelic Rock",
-  Blues_Rock: "Blues Rock",
-  Pop_Rock_Alt: "Pop Rock",
-  Drum_and_Bass: "Drum and Bass",
-  Future_Bass: "Future Bass",
-  Traditional_Country: "Traditional Country",
-  Country_Pop: "Country Pop",
-  Country_Rock: "Country Rock",
-  "Alt-Country": "Alt-Country",
-  Smooth_Jazz: "Smooth Jazz",
-  Contemporary_Jazz: "Contemporary Jazz",
-  Contemporary_Classical: "Contemporary Classical",
-  "Neo-Classical": "Neo-Classical",
-  Film_Score: "Film Score",
-  Traditional_Folk: "Traditional Folk",
-  Contemporary_Folk: "Contemporary Folk",
-  Indie_Folk: "Indie Folk",
-  "Singer-Songwriter": "Singer-Songwriter",
-  Folk_Rock: "Folk Rock",
-  Latin_Pop: "Latin Pop",
-  Latin_Urban: "Latin Urban",
-  Middle_Eastern: "Middle Eastern",
-  Roots_Reggae: "Roots Reggae",
-  Reggae_Fusion: "Reggae Fusion",
-  Heavy_Metal: "Heavy Metal",
-  Thrash_Metal: "Thrash Metal",
-  Death_Metal: "Death Metal",
-  Progressive_Metal: "Progressive Metal",
-  Delta_Blues: "Delta Blues",
-  Chicago_Blues: "Chicago Blues",
-  Blues_Rock_Alt: "Blues Rock",
-  Contemporary_Blues: "Contemporary Blues",
-  Electric_Blues: "Electric Blues",
-  Indie_Rock_Alt: "Indie Rock",
-  Indie_Pop_Alt: "Indie Pop",
-  Indie_Folk_Alt: "Indie Folk",
-  Dream_Pop: "Dream Pop",
-  Alternative_Rock_Alt: "Alternative Rock",
-  "Post-Punk": "Post-Punk",
-  New_Wave: "New Wave",
-  Grunge_Alt: "Grunge",
-  "P-Funk": "P-Funk",
-  Funk_Rock: "Funk Rock",
-  "Jazz-Funk": "Jazz-Funk",
-  Contemporary_Funk: "Contemporary Funk",
-  Disco_Funk: "Disco Funk",
-  Contemporary_Gospel: "Contemporary Gospel",
-  Christian_Rock: "Christian Rock",
-  Christian_Pop: "Christian Pop",
-  "Christian_Hip-Hop": "Christian Hip-Hop",
-  Dark_Ambient: "Dark Ambient",
-  New_Age: "New Age",
-  Ambient_Electronic: "Ambient Electronic",
-  Hardcore_Punk: "Hardcore Punk",
-  Pop_Punk: "Pop Punk",
-  "Post-Punk_Alt": "Post-Punk",
-  Ska_Punk: "Ska Punk",
-  Classic_Punk: "Classic Punk",
-  Spoken_Word: "Spoken Word",
-}
-
 // Playlist type definition
 export type Playlist = {
   id: string
   owner: string
-  name?: string // Add this field to store playlist names
+  name?: string
   spotifyLink: string
   followers: number
   primaryGenre: string
-  subgenres: string[]
+  subgenres?: string[] // Add subgenres field
   moods: string[]
   tempos: string[]
   vocal: string
@@ -252,25 +76,99 @@ export type Playlist = {
   updatedAt: number
 }
 
-// Validation schema for playlist data
-export const playlistSchema = z.object({
+// Create case-insensitive enum validator
+function createCaseInsensitiveEnum(values: readonly string[]) {
+  return z.string().refine(
+    (value) => values.some((v) => v.toLowerCase() === value.toLowerCase()),
+    (value) => ({
+      message: `Invalid value. Expected one of: ${values.join(", ")}`,
+    }),
+  )
+}
+
+// Enhance createDynamicGenreValidator to better handle edge cases
+
+export async function createDynamicGenreValidator() {
+  try {
+    // Get genres from variables
+    const genreVariables = await getVariables("genres")
+
+    // Extract genre names
+    const genreNames = genreVariables.map((genre) => genre.name)
+
+    // Log the available genres for debugging
+    console.log("Dynamic genre validator using genres:", genreNames)
+
+    // If no genres found, fall back to hardcoded PRIMARY_GENRES
+    const validGenres = genreNames.length > 0 ? genreNames : PRIMARY_GENRES
+
+    // Create and return the validator
+    return createCaseInsensitiveEnum(validGenres)
+  } catch (error) {
+    console.error("Error creating dynamic genre validator:", error)
+    // Fall back to hardcoded PRIMARY_GENRES on error
+    return createCaseInsensitiveEnum(PRIMARY_GENRES)
+  }
+}
+
+// Enhance createDynamicLanguageValidator to better handle edge cases
+export async function createDynamicLanguageValidator() {
+  try {
+    // Get languages from variables
+    const languageVariables = await getVariables("languages")
+
+    // Extract language names
+    const languageNames = languageVariables.map((lang) => lang.name)
+
+    // Log the available languages for debugging
+    console.log("Dynamic language validator using languages:", languageNames)
+
+    // If no languages found, fall back to hardcoded LANGUAGES
+    const validLanguages = languageNames.length > 0 ? languageNames : LANGUAGES
+
+    // Create and return the validator
+    return createCaseInsensitiveEnum(validLanguages)
+  } catch (error) {
+    console.error("Error creating dynamic language validator:", error)
+    // Fall back to hardcoded LANGUAGES on error
+    return createCaseInsensitiveEnum(LANGUAGES)
+  }
+}
+
+// Base playlist schema without dynamic validations
+export const basePlaylistSchema = z.object({
   name: z.string().optional(),
   spotifyLink: z.string().url("Please enter a valid Spotify link"),
   followers: z.number().int().nonnegative("Followers must be a non-negative integer"),
-  primaryGenre: z.enum([...PRIMARY_GENRES] as [string, ...string[]], {
-    errorMap: () => ({ message: "Please select a valid primary genre" }),
-  }),
-  subgenres: z.array(z.enum([...SUBGENRES] as [string, ...string[]])).nonempty("Please select at least one subgenre"),
-  moods: z.array(z.string()),
+  subgenres: z.array(z.string()).min(3, "Please select at least 3 subgenres"),
+  moods: z.array(z.string()).nonempty("Please select at least one mood"),
   tempos: z.array(z.string()),
-  vocal: z.enum([...VOCALS] as [string, ...string[]], {
-    errorMap: () => ({ message: "Please select a valid vocal type" }),
-  }),
-  eras: z.array(z.string()),
-  language: z.enum([...LANGUAGES] as [string, ...string[]], {
-    errorMap: () => ({ message: "Please select a valid language" }),
-  }),
+  vocal: z.string().min(1, "Vocal is required"),
+  eras: z.array(z.string()).nonempty("Please select at least one era"),
 })
+
+// Original playlist schema with hardcoded validations (for backward compatibility)
+export const playlistSchema = basePlaylistSchema.extend({
+  primaryGenre: createCaseInsensitiveEnum(PRIMARY_GENRES),
+  language: createCaseInsensitiveEnum(LANGUAGES),
+})
+
+// Create a dynamic playlist schema with up-to-date genre and language options
+export async function createDynamicPlaylistSchema() {
+  try {
+    const genreValidator = await createDynamicGenreValidator()
+    const languageValidator = await createDynamicLanguageValidator()
+
+    return basePlaylistSchema.extend({
+      primaryGenre: genreValidator,
+      language: languageValidator,
+    })
+  } catch (error) {
+    console.error("Error creating dynamic playlist schema:", error)
+    // Fall back to standard schema if dynamic creation fails
+    return playlistSchema
+  }
+}
 
 // Function to create a new playlist
 export async function createPlaylist(
@@ -278,6 +176,17 @@ export async function createPlaylist(
   playlistData: Omit<Playlist, "id" | "owner" | "createdAt" | "updatedAt">,
 ): Promise<Playlist | null> {
   try {
+    // Validate with dynamic schema
+    const dynamicSchema = await createDynamicPlaylistSchema()
+
+    // Log the data being validated
+    console.log("Validating playlist data:", {
+      primaryGenre: playlistData.primaryGenre,
+      language: playlistData.language,
+    })
+
+    dynamicSchema.parse(playlistData)
+
     const id = crypto.randomUUID()
     const createdAt = Date.now()
     const updatedAt = createdAt
@@ -290,6 +199,7 @@ export async function createPlaylist(
       updatedAt,
     }
 
+    console.log("Creating playlist with data:", playlist)
     await kv.hset(`playlist:${id}`, playlist)
     await kv.sadd(`user:${owner}:playlists`, id)
 
@@ -306,6 +216,17 @@ export async function updatePlaylist(
   playlistData: Omit<Playlist, "id" | "owner" | "createdAt" | "updatedAt">,
 ): Promise<Playlist | null> {
   try {
+    // Validate with dynamic schema
+    const dynamicSchema = await createDynamicPlaylistSchema()
+
+    // Log the data being validated
+    console.log("Validating playlist update data:", {
+      primaryGenre: playlistData.primaryGenre,
+      language: playlistData.language,
+    })
+
+    dynamicSchema.parse(playlistData)
+
     const updatedAt = Date.now()
 
     const playlist: Playlist = {
@@ -374,7 +295,6 @@ export async function getPlaylistById(id: string): Promise<Playlist | null> {
       spotifyLink: playlist.spotifyLink,
       followers: playlist.followers,
       primaryGenre: playlist.primaryGenre,
-      subgenres: playlist.subgenres,
       moods: playlist.moods,
       tempos: playlist.tempos,
       vocal: playlist.vocal,
@@ -383,6 +303,7 @@ export async function getPlaylistById(id: string): Promise<Playlist | null> {
       createdAt: playlist.createdAt,
       updatedAt: playlist.updatedAt,
       name: playlist.name,
+      subgenres: playlist.subgenres,
     }
   } catch (error) {
     console.error("Error getting playlist by ID:", error)

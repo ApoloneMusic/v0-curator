@@ -4,11 +4,9 @@ import { useState } from "react"
 import { ExternalLink, Pencil, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { Playlist } from "@/lib/playlists"
 import { EditPlaylistModal } from "./edit-playlist-modal"
-import { SUBGENRE_DISPLAY_MAP } from "@/lib/playlists"
 
 interface PlaylistTableProps {
   playlists: Playlist[]
@@ -43,9 +41,8 @@ export function PlaylistTable({ playlists, isOwner = false, onPlaylistUpdated }:
     const query = searchQuery.toLowerCase()
     const name = getPlaylistName(playlist).toLowerCase()
     const genre = playlist.primaryGenre.toLowerCase()
-    const subgenres = playlist.subgenres.map((s) => s.toLowerCase())
 
-    return name.includes(query) || genre.includes(query) || subgenres.some((s) => s.includes(query))
+    return name.includes(query) || genre.includes(query)
   })
 
   const handleEditPlaylist = (playlist: Playlist) => {
@@ -68,11 +65,6 @@ export function PlaylistTable({ playlists, isOwner = false, onPlaylistUpdated }:
     }
   }
 
-  // Format subgenre display names
-  const formatSubgenre = (subgenre: string) => {
-    return SUBGENRE_DISPLAY_MAP[subgenre] || subgenre.replace(/_/g, " ")
-  }
-
   return (
     <div className="space-y-4">
       <div className="relative">
@@ -91,15 +83,14 @@ export function PlaylistTable({ playlists, isOwner = false, onPlaylistUpdated }:
             <TableRow>
               <TableHead>Playlist Name</TableHead>
               <TableHead>Primary Genre</TableHead>
-              <TableHead>Subgenres</TableHead>
-              <TableHead className="text-right">Followers</TableHead>
+              <TableHead className="text-right">Saves</TableHead>
               {isOwner && <TableHead className="w-[100px]">Actions</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredPlaylists.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isOwner ? 5 : 4} className="h-24 text-center">
+                <TableCell colSpan={isOwner ? 4 : 3} className="h-24 text-center">
                   No playlists found.
                 </TableCell>
               </TableRow>
@@ -118,20 +109,6 @@ export function PlaylistTable({ playlists, isOwner = false, onPlaylistUpdated }:
                     </a>
                   </TableCell>
                   <TableCell>{playlist.primaryGenre}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {playlist.subgenres.slice(0, 3).map((subgenre) => (
-                        <Badge key={subgenre} variant="outline" className="text-xs">
-                          {formatSubgenre(subgenre)}
-                        </Badge>
-                      ))}
-                      {playlist.subgenres.length > 3 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{playlist.subgenres.length - 3} more
-                        </Badge>
-                      )}
-                    </div>
-                  </TableCell>
                   <TableCell className="text-right">{playlist.followers.toLocaleString()}</TableCell>
                   {isOwner && (
                     <TableCell>

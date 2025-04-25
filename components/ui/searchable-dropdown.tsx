@@ -24,7 +24,7 @@ export type SearchableDropdownOption = {
 
 interface SearchableDropdownProps {
   options: SearchableDropdownOption[]
-  value: string[]
+  value?: string | string[] // Modified to accept string or string[]
   onChange: (value: string[]) => void
   placeholder?: string
   emptyMessage?: string
@@ -35,7 +35,7 @@ interface SearchableDropdownProps {
 
 export function SearchableDropdown({
   options,
-  value,
+  value, // Modified to accept string or string[]
   onChange,
   placeholder = "Select items...",
   emptyMessage = "No items found.",
@@ -45,6 +45,11 @@ export function SearchableDropdown({
 }: SearchableDropdownProps) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
+
+  // Ensure value is always an array
+  const safeValue = React.useMemo(() => {
+    return Array.isArray(value) ? value : value ? [value] : []
+  }, [value])
 
   // Group options by their group property
   const groupedOptions = React.useMemo(() => {
@@ -84,34 +89,34 @@ export function SearchableDropdown({
 
   // Get selected item labels
   const selectedItems = React.useMemo(() => {
-    return value.map((v) => {
+    return safeValue.map((v) => {
       const option = options.find((option) => option.value === v)
       return option ? option.label : v
     })
-  }, [value, options])
+  }, [safeValue, options])
 
   // Handle item selection
   const handleSelect = React.useCallback(
     (selectedValue: string) => {
-      if (value.includes(selectedValue)) {
-        onChange(value.filter((v) => v !== selectedValue))
+      if (safeValue.includes(selectedValue)) {
+        onChange(safeValue.filter((v) => v !== selectedValue))
       } else {
-        if (maxItems && value.length >= maxItems) {
-          onChange([...value.slice(1), selectedValue])
+        if (maxItems && safeValue.length >= maxItems) {
+          onChange([...safeValue.slice(1), selectedValue])
         } else {
-          onChange([...value, selectedValue])
+          onChange([...safeValue, selectedValue])
         }
       }
     },
-    [value, onChange, maxItems],
+    [safeValue, onChange, maxItems],
   )
 
   // Handle item removal
   const handleRemove = React.useCallback(
     (selectedValue: string) => {
-      onChange(value.filter((v) => v !== selectedValue))
+      onChange(safeValue.filter((v) => v !== selectedValue))
     },
-    [value, onChange],
+    [safeValue, onChange],
   )
 
   return (
@@ -122,10 +127,10 @@ export function SearchableDropdown({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className={cn("w-full justify-between", !value.length && "text-muted-foreground")}
+            className={cn("w-full justify-between", !safeValue.length && "text-muted-foreground")}
             disabled={disabled}
           >
-            {value.length > 0 ? `${value.length} selected` : placeholder}
+            {safeValue.length > 0 ? `${safeValue.length} selected` : placeholder}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -153,7 +158,7 @@ export function SearchableDropdown({
                     {groupOptions.map((option) => (
                       <CommandItem key={option.value} value={option.value} onSelect={handleSelect}>
                         <Check
-                          className={cn("mr-2 h-4 w-4", value.includes(option.value) ? "opacity-100" : "opacity-0")}
+                          className={cn("mr-2 h-4 w-4", safeValue.includes(option.value) ? "opacity-100" : "opacity-0")}
                         />
                         {option.label}
                       </CommandItem>
@@ -167,7 +172,7 @@ export function SearchableDropdown({
         </PopoverContent>
       </Popover>
 
-      {value.length > 0 && (
+      {safeValue.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {selectedItems.map((item, i) => (
             <Badge key={i} variant="secondary" className="flex items-center gap-1">
@@ -176,7 +181,7 @@ export function SearchableDropdown({
                 variant="ghost"
                 size="sm"
                 className="h-4 w-4 p-0 hover:bg-transparent"
-                onClick={() => handleRemove(value[i])}
+                onClick={() => handleRemove(safeValue[i])}
               >
                 <X className="h-3 w-3" />
               </Button>

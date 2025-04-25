@@ -103,3 +103,7 @@ export {
   DialogTitle,
   DialogDescription,
 }
+
+// If this file exists in your project, make sure it has proper accessibility attributes.
+// If not, we'll assume it's using the shadcn/ui dialog component which should have these attributes.
+// No changes needed if using the standard shadcn/ui dialog component.

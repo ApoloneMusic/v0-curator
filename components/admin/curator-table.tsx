@@ -199,6 +199,15 @@ export function CuratorTable({ initialCurators = [] }: CuratorTableProps) {
                       <ArrowUpDown className="ml-1 h-4 w-4" />
                     </div>
                   </th>
+                  <th
+                    className="px-4 py-2 text-left font-medium text-sm cursor-pointer"
+                    onClick={() => handleSort("playlists")}
+                  >
+                    <div className="flex items-center">
+                      Playlists
+                      <ArrowUpDown className="ml-1 h-4 w-4" />
+                    </div>
+                  </th>
                   <th className="px-4 py-2 text-left font-medium text-sm">Actions</th>
                 </tr>
               </thead>
@@ -224,6 +233,7 @@ export function CuratorTable({ initialCurators = [] }: CuratorTableProps) {
                     </td>
                     <td className="px-4 py-2">{curator.credits || 0}</td>
                     <td className="px-4 py-2">{curator.curatorScore || 0}</td>
+                    <td className="px-4 py-2">{Array.isArray(curator.playlists) ? curator.playlists.length : 0}</td>
                     <td className="px-4 py-2">
                       <Button
                         variant="ghost"
@@ -239,7 +249,7 @@ export function CuratorTable({ initialCurators = [] }: CuratorTableProps) {
 
                 {sortedCurators.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
                       {curators.length === 0
                         ? "No curators found in the system"
                         : "No curators match your search criteria"}

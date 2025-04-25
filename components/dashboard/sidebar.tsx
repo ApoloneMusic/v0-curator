@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { FileText, ListMusic, Music } from "lucide-react"
 
+// Update the navigation items to remove the separate Pitches entry
 const navItems = [
   {
     name: "Pitches",
@@ -32,7 +33,11 @@ export function Sidebar() {
       </div>
       <nav className="space-y-1 px-3">
         {navItems.map((item) => {
-          const isActive = pathname === item.href
+          const isActive =
+            pathname === item.href ||
+            (item.href === "/dashboard" &&
+              pathname.startsWith("/dashboard") &&
+              !navItems.some((navItem) => navItem.href !== "/dashboard" && pathname.startsWith(navItem.href)))
           return (
             <Link
               key={item.name}

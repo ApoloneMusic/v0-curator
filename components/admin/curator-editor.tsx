@@ -189,6 +189,27 @@ export function CuratorEditor({ curator, onUpdate }: CuratorEditorProps) {
             </div>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="playlists">Playlists</Label>
+            <div className="flex items-center space-x-2">
+              <Input
+                id="playlists"
+                value={Array.isArray(curatorData.playlists) ? curatorData.playlists.length : 0}
+                disabled
+                className="bg-muted"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(`/admin/dashboard/playlists?curator=${curatorData.id}`, "_blank")}
+              >
+                View
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Number of playlists associated with this curator</p>
+          </div>
+
           {error?._form && (
             <Alert variant="destructive">
               <AlertDescription>{error._form[0]}</AlertDescription>

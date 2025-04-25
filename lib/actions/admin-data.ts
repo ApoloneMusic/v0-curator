@@ -28,7 +28,13 @@ export async function getAllUsers() {
     }
 
     // Filter out email index keys
-    const userIdKeys = userKeys.filter((key) => key && typeof key === "string" && !key.includes("user:email:"))
+    const userIdKeys = userKeys.filter((key) => {
+      if (!key || typeof key !== "string") return false
+
+      // Only include keys that match the pattern "user:{uuid}" and don't have additional segments
+      const parts = key.split(":")
+      return parts.length === 2 && parts[0] === "user" && parts[1].length > 0
+    })
 
     // Get all users
     const users = []

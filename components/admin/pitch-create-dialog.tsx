@@ -1,0 +1,229 @@
+"use client"
+
+import type React from "react"
+
+import { useState, useEffect } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { CalendarIcon } from "lucide-react"
+import { format } from "date-fns"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { cn } from "@/lib/utils"
+import type { Pitch } from "@/lib/pitches"
+import type { Campaign } from "@/lib/campaigns"
+import type { Playlist } from "@/lib/playlists"
+import { PITCH_STATUSES } from "@/lib/pitches"
+
+interface PitchCreateDialogProps {
+  campaigns: Campaign[]
+  playlists: Playlist[]
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onSave: (pitch: Omit<Pitch, "pitch_id" | "created_at" | "updated_at">) => void
+}
+
+export function PitchCreateDialog({ campaigns, playlists, open, onOpenChange, onSave }: PitchCreateDialogProps) {
+  const [newPitch, setNewPitch] = useState<Omit<Pitch, "pitch_id" | "created_at" | "updated_at">>({
+    campaign_id: campaigns.length > 0 ? campaigns[0].campaign_id : 0,
+    client_id: campaigns.length > 0 ? campaigns[0].client_id : "",
+    track_link: campaigns.length > 0 ? campaigns[0].track_link : "",
+    playlist_id: playlists.length > 0 ? playlists[0].id : "",
+    status: "matched",
+  })
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
+
+  // Reset the new pitch when the dialog opens
+  useEffect(() => {
+    if (open && campaigns.length > 0) {
+      const defaultCampaign = campaigns[0]
+      setNewPitch({
+        campaign_id: defaultCampaign.campaign_id,
+        client_id: defaultCampaign.client_id,
+        track_link: defaultCampaign.track_link,
+        playlist_id: playlists.length > 0 ? playlists[0].id : "",
+        status: "matched",
+      })
+      setSelectedDate(undefined)
+    }
+  }, [open, campaigns, playlists])
+
+  // Update client_id and track_link when campaign_id changes
+  useEffect(() => {
+    const campaign = campaigns.find((c) => c.campaign_id === newPitch.campaign_id)
+    if (campaign) {
+      setNewPitch((prev) => ({
+        ...prev,
+        client_id: campaign.client_id,
+        track_link: campaign.track_link,
+      }))
+    }
+  }, [newPitch.campaign_id, campaigns])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+
+    if (name === "placement_duration") {
+      setNewPitch({
+        ...newPitch,
+        [name]: Number.parseInt(value) || 0,
+      })
+    } else {
+      setNewPitch({
+        ...newPitch,
+        [name]: value,
+      })
+    }
+  }
+
+  const handleSelectChange = (name: string, value: string) => {
+    setNewPitch({
+      ...newPitch,
+      [name]: name === "campaign_id" ? Number.parseInt(value) : value,
+    })
+  }
+
+  const handleDateChange = (date: Date | undefined) => {
+    setSelectedDate(date)
+    setNewPitch({
+      ...newPitch,
+      placement_date: date ? date.getTime() : undefined,
+    })
+  }
+
+  const handleSave = () => {
+    onSave(newPitch)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create New Pitch</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="campaign_id">Campaign</Label>
+            <Select
+              value={newPitch.campaign_id.toString()}
+              onValueChange={(value) => handleSelectChange("campaign_id", value)}
+            >
+              <SelectTrigger id="campaign_id" className="w-full">
+                <SelectValue placeholder="Select campaign" />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                {campaigns.map((campaign) => (
+                  <SelectItem key={campaign.campaign_id} value={campaign.campaign_id.toString()}>
+                    #{campaign.campaign_id} - {campaign.track_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="client_id">Client ID</Label>
+            <Input
+              id="client_id"
+              name="client_id"
+              value={newPitch.client_id}
+              onChange={handleInputChange}
+              placeholder="Enter client ID"
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="track_link">Track Link</Label>
+            <Input
+              id="track_link"
+              name="track_link"
+              value={newPitch.track_link}
+              onChange={handleInputChange}
+              placeholder="https://..."
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="playlist_id">Playlist</Label>
+            <Select value={newPitch.playlist_id} onValueChange={(value) => handleSelectChange("playlist_id", value)}>
+              <SelectTrigger id="playlist_id" className="w-full">
+                <SelectValue placeholder="Select playlist" />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                {playlists.map((playlist) => (
+                  <SelectItem key={playlist.id} value={playlist.id}>
+                    {playlist.name || playlist.spotifyLink.split("/").pop() || playlist.id}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="status">Status</Label>
+            <Select value={newPitch.status} onValueChange={(value) => handleSelectChange("status", value)}>
+              <SelectTrigger id="status" className="w-full">
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent position="popper">
+                {PITCH_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="placement_date">Placement Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !selectedDate && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {selectedDate ? format(selectedDate, "PPP") : "Select date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar mode="single" selected={selectedDate} onSelect={handleDateChange} initialFocus />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="placement_duration">Duration (days)</Label>
+              <Input
+                id="placement_duration"
+                name="placement_duration"
+                type="number"
+                min="0"
+                value={newPitch.placement_duration || ""}
+                onChange={handleInputChange}
+              />
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave}>Create Pitch</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}

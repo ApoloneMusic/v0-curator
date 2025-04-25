@@ -2,36 +2,56 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Users, Database, Settings, Award, Music, SlidersHorizontal } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { BarChart3, Settings, ListMusic, Tag, Megaphone, Send, ShieldAlert, Sliders } from "lucide-react"
 
-const navItems = [
+const sidebarItems = [
   {
-    name: "Users",
+    title: "Dashboard",
     href: "/admin/dashboard",
-    icon: Users,
+    icon: BarChart3,
   },
   {
-    name: "Curators",
-    href: "/admin/dashboard/curators",
-    icon: Award,
+    title: "Admins",
+    href: "/admin/dashboard/admins",
+    icon: ShieldAlert,
   },
   {
-    name: "Playlists",
+    title: "Playlists",
     href: "/admin/dashboard/playlists",
-    icon: Music,
+    icon: ListMusic,
   },
   {
-    name: "Variables",
+    title: "Campaigns",
+    href: "/admin/dashboard/campaigns",
+    icon: Megaphone,
+  },
+  {
+    title: "Pitches",
+    href: "/admin/dashboard/pitches",
+    icon: Send,
+  },
+  {
+    title: "Matching",
+    href: "/admin/dashboard/matching",
+    icon: Sliders,
+  },
+  {
+    title: "Variables",
     href: "/admin/dashboard/variables",
-    icon: SlidersHorizontal,
+    icon: Tag,
+    children: [
+      { title: "Genres", href: "/admin/dashboard/variables/genres" },
+      { title: "Subgenres", href: "/admin/dashboard/variables/subgenres" },
+      { title: "Moods", href: "/admin/dashboard/variables/moods" },
+      { title: "Tempos", href: "/admin/dashboard/variables/tempos" },
+      { title: "Vocals", href: "/admin/dashboard/variables/vocals" },
+      { title: "Eras", href: "/admin/dashboard/variables/eras" },
+      { title: "Languages", href: "/admin/dashboard/variables/languages" },
+    ],
   },
   {
-    name: "Database",
-    href: "/admin/dashboard/database",
-    icon: Database,
-  },
-  {
-    name: "Settings",
+    title: "Settings",
     href: "/admin/dashboard/settings",
     icon: Settings,
   },
@@ -43,25 +63,54 @@ export function AdminSidebar() {
   return (
     <div className="w-64 border-r bg-white h-full">
       <div className="p-6">
-        <h2 className="text-lg font-medium uppercase text-muted-foreground">Admin Navigation</h2>
+        <h2 className="text-lg font-medium">Admin Panel</h2>
       </div>
-      <nav className="space-y-1 px-3">
-        {navItems.map((item) => {
-          const isActive = pathname === item.href
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={`flex items-center px-3 py-3 text-base rounded-md ${
-                isActive ? "bg-muted font-medium text-foreground" : "text-muted-foreground hover:bg-muted/50"
-              }`}
-            >
-              <item.icon className="mr-3 h-5 w-5" />
-              {item.name}
-            </Link>
-          )
-        })}
-      </nav>
+      <div className="px-3 py-2">
+        <div className="space-y-1">
+          {sidebarItems.map((item) => {
+            const isActive =
+              pathname === item.href || (item.children && item.children.some((child) => pathname === child.href))
+            const isVariablesSection = item.title === "Variables" && pathname.startsWith("/admin/dashboard/variables")
+
+            return (
+              <div key={item.href} className="space-y-1">
+                <Link
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                    isActive || isVariablesSection
+                      ? "bg-muted text-foreground font-medium"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.title}
+                </Link>
+
+                {/* Render children for Variables section if active */}
+                {item.children && isVariablesSection && (
+                  <div className="ml-7 mt-1 space-y-1 border-l pl-2">
+                    {item.children.map((child) => (
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        className={cn(
+                          "flex items-center rounded-lg px-3 py-1.5 text-xs transition-colors",
+                          pathname === child.href
+                            ? "bg-muted text-foreground font-medium"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        {child.title}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }

@@ -49,11 +49,21 @@ export async function getAllCurators() {
             // Remove password from user data
             const { password, ...userWithoutPassword } = userData
 
+            // Get playlist IDs for this curator
+            let playlistIds = []
+            try {
+              playlistIds = (await kv.smembers(`user:${curatorId}:playlists`)) || []
+            } catch (playlistError) {
+              console.error(`Error fetching playlists for curator ${curatorId}:`, playlistError)
+              playlistIds = []
+            }
+
             // Combine user and curator data
             const combinedData = {
               id: curatorId,
               ...userWithoutPassword,
               ...curatorData,
+              playlists: playlistIds,
             }
 
             curators.push(combinedData)
