@@ -24,7 +24,7 @@ export type SearchableDropdownOption = {
 
 interface SearchableDropdownProps {
   options: SearchableDropdownOption[]
-  value?: string | string[] // Modified to accept string or string[]
+  value: string[]
   onChange: (value: string[]) => void
   placeholder?: string
   emptyMessage?: string
@@ -35,7 +35,7 @@ interface SearchableDropdownProps {
 
 export function SearchableDropdown({
   options,
-  value, // Modified to accept string or string[]
+  value = [],
   onChange,
   placeholder = "Select items...",
   emptyMessage = "No items found.",
@@ -47,9 +47,7 @@ export function SearchableDropdown({
   const [searchQuery, setSearchQuery] = React.useState("")
 
   // Ensure value is always an array
-  const safeValue = React.useMemo(() => {
-    return Array.isArray(value) ? value : value ? [value] : []
-  }, [value])
+  const safeValue = Array.isArray(value) ? value : []
 
   // Group options by their group property
   const groupedOptions = React.useMemo(() => {

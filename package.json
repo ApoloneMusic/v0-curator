@@ -59,8 +59,8 @@
     "vaul": "^0.9.6",
     "zod": "latest",
     "@radix-ui/react-icons": "latest",
-    "bcryptjs": "latest",
     "@vercel/kv": "latest",
+    "bcryptjs": "latest",
     "crypto": "latest"
   },
   "devDependencies": {
